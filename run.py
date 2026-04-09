@@ -8,6 +8,5 @@ def make_shell_context():
     return {'db': db, 'User': User}
 
 if __name__ == "__main__":
-    print("Inside main block")
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
