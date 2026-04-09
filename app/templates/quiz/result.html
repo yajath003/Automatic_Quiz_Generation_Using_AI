@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-5 text-center">
+                <div class="mb-4">
+                    {% if attempt.total_score >= 80 %}
+                    <i class="bi bi-trophy text-warning display-1"></i>
+                    {% elif attempt.total_score >= 50 %}
+                    <i class="bi bi-check-circle text-success display-1"></i>
+                    {% else %}
+                    <i class="bi bi-x-circle text-danger display-1"></i>
+                    {% endif %}
+                </div>
+                <h2 class="fw-bold mb-1">Quiz Completed!</h2>
+                <p class="text-secondary mb-4">You scored</p>
+
+                <div class="display-3 fw-bold text-primary mb-4">{{ "%.0f"|format(attempt.total_score) }}%</div>
+
+                <div class="row g-4 justify-content-center mb-5">
+                    <div class="col-auto">
+                        <div class="p-3 bg-light rounded text-center" style="min-width: 120px;">
+                            <div class="small text-secondary fw-bold">TIME TAKEN</div>
+                            <div class="h5 mb-0">{{ formatted_time }}</div>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="p-3 bg-light rounded text-center" style="min-width: 120px;">
+                            <div class="small text-secondary fw-bold">CORRECT</div>
+                            <div class="h5 mb-0 text-success">{{ correct_count }} / {{ attempt.quiz.total_questions }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{{ url_for('user.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-house me-2"></i> Dashboard
+                    </a>
+                    <form action="{{ url_for('quiz.start') }}" method="post">
+                        <input type="hidden" name="resource_id" value="{{ attempt.quiz.resource_id }}">
+                        <input type="hidden" name="retry_quiz_id" value="{{ attempt.quiz.id }}">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-arrow-repeat me-2"></i> Retry Quiz
+                        </button>
+                    </form>
+                    
+                    {% if current_user.is_admin() %}
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#publishModal">
+                        <i class="bi bi-megaphone me-2"></i> Assign to Class
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if current_user.is_admin() %}
+        <!-- Publish Modal -->
+        <div class="modal fade" id="publishModal" tabindex="-1" aria-labelledby="publishModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form action="{{ url_for('admin_assignments.publish_assignment', quiz_id=attempt.quiz.id) }}" method="post">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="publishModalLabel">Assign Quiz to Class</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label">Due Date (Optional)</label>
+                                <input type="datetime-local" class="form-control" id="due_date" name="due_date">
+                            </div>
+                            <p class="small text-secondary">This will make the quiz visible to all students on their "Pending Assignments" tab.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Assign Now</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Review</h5>
+            <button id="btn-generate-ai" class="btn btn-sm btn-primary" onclick="generateExplanations()">
+                <i class="bi bi-robot me-1"></i> Generate AI Explanations
+            </button>
+        </div>
+
+        <div id="explanations-loading" class="text-center mb-4 d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-secondary mt-2 small">Generating AI explanations. This may take a moment...</p>
+        </div>
+
+        {% for answer in attempt.answers %}
+        {% set question = answer.question %}
+        {% set options = question.options|from_json if question.options else {} %}
+        <div
+            class="card mb-3 border-start border-4 {% if answer.is_correct %}border-success{% else %}border-danger{% endif %}">
+            <div class="card-body">
+                <p class="fw-bold mb-3">Q{{ loop.index }}: {{ question.question_text }}</p>
+
+                <div class="options-list mb-3">
+                    {% set user_selected_list = (answer.selected_answer.split(',') if answer.selected_answer else []) %}
+                    {% set correct_answer_list = (question.correct_answer.split(',') if question.correct_answer else [])
+                    %}
+
+                    {% for key, val in options.items() %}
+                    {% set is_selected = (key in user_selected_list) %}
+                    {% set is_correct = (key in correct_answer_list) %}
+                    <div class="p-2 rounded mb-2 border 
+                        {% if is_correct %}bg-success bg-opacity-10 border-success{% elif is_selected and not answer.is_correct %}bg-danger bg-opacity-10 border-danger{% else %}bg-light{% endif %}"
+                        style="position: relative;">
+                        <span class="fw-bold me-2">{{ key }}:</span> {{ val }}
+
+                        {% if is_correct %}
+                        <span class="badge bg-success float-end"><i class="bi bi-check-lg"></i> Correct</span>
+                        {% endif %}
+
+                        {% if is_selected %}
+                        <span class="badge bg-primary float-end me-1">Your Choice</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div id="exp-container-{{ question.id }}" class="bg-light p-3 rounded border small d-none">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-primary">
+                        <i class="bi bi-lightbulb-fill"></i>
+                        <h6 class="mb-0 fw-bold small">AI Explanation</h6>
+                    </div>
+                    <p id="exp-text-{{ question.id }}" class="mb-0 text-dark" style="white-space: pre-wrap;"></p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function generateExplanations() {
+        const btn = document.getElementById('btn-generate-ai');
+        const loader = document.getElementById('explanations-loading');
+
+        // UI Updates
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
+        loader.classList.remove('d-none');
+
+        fetch("{{ url_for('quiz.generate_explanations', attempt_id=attempt.id) }}")
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                } else {
+                    data.forEach(item => {
+                        const container = document.getElementById(`exp-container-${item.question_id}`);
+                        const textElem = document.getElementById(`exp-text-${item.question_id}`);
+
+                        if (container && textElem) {
+                            textElem.textContent = item.explanation || "Explanation unavailable.";
+                            container.classList.remove('d-none');
+                        }
+                    });
+                }
+            })
+            .catch(err => {
+                console.error("Failed to fetch explanations:", err);
+                alert("Failed to generate explanations. Please try again.");
+            })
+            .finally(() => {
+                btn.classList.add('d-none'); // Hide button after it's done or failed
+                loader.classList.add('d-none');
+            });
+    }
+</script>
+{% endblock %}

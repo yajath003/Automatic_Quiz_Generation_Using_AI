@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Results: {{ assignment.title }}</h4>
+        <p class="text-secondary small mb-0">Tracking user performance and completion status.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin.export_assignment_csv', assign_id=assignment.id) }}" class="btn btn-success btn-sm">
+            <i class="bi bi-download me-1"></i> Export CSV
+        </a>
+        <a href="{{ url_for('admin.list_assignments') }}" class="btn btn-outline-secondary btn-sm ms-2">Back to List</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">User</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Time Taken</th>
+                        <th class="text-end pe-4">Completion Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in results %}
+                    <tr>
+                        <td class="ps-4 fw-medium">{{ item.user.username }}</td>
+                        <td>{{ item.user.email }}</td>
+                        <td>
+                            {% if item.status == 'completed' %}
+                            <span class="badge bg-success bg-opacity-10 text-success">Completed</span>
+                            {% else %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.score|round(1) if item.score is not none else 'N/A' }}%</td>
+                        <td>{{ item.time_taken if item.time_taken is not none else 'N/A' }}s</td>
+                        <td class="text-end pe-4 text-secondary small">
+                            {{ item.completed_at.strftime('%Y-%m-%d %H:%M') if item.completed_at else 'N/A' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-secondary">No users assigned to this assignment.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

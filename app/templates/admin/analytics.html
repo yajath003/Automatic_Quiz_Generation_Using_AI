@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-1">System Analytics</h4>
+            <p class="text-secondary small mb-0">Visualizing learning outcomes and system activity.</p>
+        </div>
+        <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-printer me-2"></i>Export PDF
+        </button>
+    </div>
+
+    <!-- 1️⃣ Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-primary border-4">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small fw-bold">Total Users</h6>
+                    <h3 class="fw-bold mb-0">{{ stats.total_users }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-success border-4">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small fw-bold">Total Resources</h6>
+                    <h3 class="fw-bold mb-0">{{ stats.total_resources }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-info border-4">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small fw-bold">Assignments</h6>
+                    <h3 class="fw-bold mb-0">{{ stats.total_assignments }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 border-start border-warning border-4">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small fw-bold">Quiz Attempts</h6>
+                    <h3 class="fw-bold mb-0">{{ stats.total_attempts }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 2️⃣ Quiz Performance Chart -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold mb-0">Quiz Score Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="scoreChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5️⃣ Completion Rate -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold mb-0">Assignment Completion Rate</h6>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <div class="text-center mb-4">
+                        <h1 class="display-4 fw-bold text-primary">{{ completion_rate }}%</h1>
+                        <p class="text-muted small">{{ completed_assigned }} of {{ total_assigned }} assigned quizzes completed</p>
+                    </div>
+                    <div class="progress" style="height: 15px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" 
+                             style="width: {{ completion_rate }}%" aria-valuenow="{{ completion_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 3️⃣ Most Active Users -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold mb-0">Top Performing Users</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-3 border-0 small text-uppercase">Username</th>
+                                    <th class="border-0 small text-uppercase text-center">Attempts</th>
+                                    <th class="border-0 small text-uppercase text-end pe-3">Avg Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in active_users %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-bold">{{ user.username }}</div>
+                                    </td>
+                                    <td class="text-center">{{ user.attempt_count }}</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge {% if user.avg_score >= 80 %}bg-success{% elif user.avg_score >= 60 %}bg-info{% else %}bg-warning{% endif %}">
+                                            {{ user.avg_score | round(1) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4️⃣ Resource Usage Analytics -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold mb-0">Most Used Resources</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-3 border-0 small text-uppercase">Resource Title</th>
+                                    <th class="border-0 small text-uppercase text-center">Assignments</th>
+                                    <th class="border-0 small text-uppercase text-center">Attempts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for res in resource_usage %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-bold text-truncate" style="max-width: 250px;">{{ res.title }}</div>
+                                    </td>
+                                    <td class="text-center">{{ res.assign_count }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-dark border">{{ res.attempt_count }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6️⃣ Recent Activity -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3">
+            <h6 class="fw-bold mb-0">Recent Quiz Activity (Last 10)</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-3 border-0 small text-uppercase">User</th>
+                            <th class="border-0 small text-uppercase">Assignment / Quiz</th>
+                            <th class="border-0 small text-uppercase text-center">Score</th>
+                            <th class="border-0 small text-uppercase text-end pe-3">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in recent_activity %}
+                        <tr>
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 30px; height: 30px; font-size: 12px;">
+                                        {{ a.user.username[0]|upper }}
+                                    </div>
+                                    <div class="fw-medium">{{ a.user.username }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="small fw-medium text-truncate" style="max-width: 300px;">
+                                    {{ a.quiz.resource.title if a.quiz and a.quiz.resource else 'Self-Generated Quiz' }}
+                                </div>
+                                <div class="text-muted extra-small" style="font-size: 11px;">
+                                    Type: {{ 'Assignment' if a.assignment_attempt else 'Flash Quiz' }}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="fw-bold {% if a.total_score >= (a.quiz.total_questions * 0.8) %}text-success{% elif a.total_score >= (a.quiz.total_questions * 0.5) %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ a.total_score|int }} / {{ a.quiz.total_questions }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-3 small text-muted">
+                                {{ a.started_at.strftime('%b %d, %H:%M') }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['0-40%', '40-60%', '60-80%', '80-100%'],
+            datasets: [{
+                label: 'Number of Attempts',
+                data: [
+                    {{ distribution['0-40'] }}, 
+                    {{ distribution['40-60'] }}, 
+                    {{ distribution['60-80'] }}, 
+                    {{ distribution['80-100'] }}
+                ],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.7)',
+                    'rgba(255, 205, 86, 0.7)',
+                    'rgba(54, 162, 235, 0.7)',
+                    'rgba(75, 192, 192, 0.7)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(255, 205, 86)',
+                    'rgb(54, 162, 235)',
+                    'rgb(75, 192, 192)'
+                ],
+                borderWidth: 1,
+                borderRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Architecture – Automatic Quiz Generation and Evaluation using LLMs</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f8f9fc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+    min-height: 100vh;
+  }
+
+  .page-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1f36;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+    max-width: 860px;
+  }
+  .page-subtitle {
+    font-size: 11px;
+    color: #6b7280;
+    text-align: center;
+    margin-bottom: 22px;
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .diagram-wrap {
+    width: 100%;
+    max-width: 1100px;
+    background: #ffffff;
+    border: 1px solid #dde1ee;
+    border-radius: 10px;
+    padding: 28px 24px 32px;
+    box-shadow: 0 2px 18px rgba(30,40,100,0.07);
+  }
+
+  /* ─── LAYERS ─── */
+  .layer {
+    position: relative;
+    border-radius: 8px;
+    padding: 12px 14px 14px;
+    margin-bottom: 0;
+  }
+
+  .layer-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .layer-label .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Colour palette per layer */
+  .l-user    { background: #eef2ff; border: 1.5px solid #a5b4fc; }
+  .l-user    .layer-label { color: #3730a3; }
+  .l-user    .dot { background: #6366f1; }
+
+  .l-app     { background: #eff6ff; border: 1.5px solid #93c5fd; }
+  .l-app     .layer-label { color: #1d4ed8; }
+  .l-app     .dot { background: #3b82f6; }
+
+  .l-proc    { background: #f0fdf4; border: 1.5px solid #86efac; }
+  .l-proc    .layer-label { color: #15803d; }
+  .l-proc    .dot { background: #22c55e; }
+
+  .l-eval    { background: #fff7ed; border: 2px solid #fb923c; }
+  .l-eval    .layer-label { color: #c2410c; }
+  .l-eval    .dot { background: #f97316; }
+
+  .l-data    { background: #fdf4ff; border: 1.5px solid #d8b4fe; }
+  .l-data    .layer-label { color: #7e22ce; }
+  .l-data    .dot { background: #a855f7; }
+
+  .l-async   { background: #fefce8; border: 1.5px solid #fde047; }
+  .l-async   .layer-label { color: #854d0e; }
+  .l-async   .dot { background: #eab308; }
+
+  .l-ext     { background: #f1f5f9; border: 1.5px dashed #94a3b8; }
+  .l-ext     .layer-label { color: #475569; }
+  .l-ext     .dot { background: #64748b; }
+
+  /* ─── COMPONENT GRID ─── */
+  .comp-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .comp-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 140px;
+  }
+  .comp-group-title {
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #374151;
+    padding-bottom: 3px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    margin-bottom: 2px;
+  }
+
+  .comp {
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+    color: #1e293b;
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.09);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .comp .icon {
+    font-size: 10px;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .comp ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 2px;
+  }
+  .comp ul li {
+    font-size: 8px;
+    color: #4b5563;
+    font-weight: 400;
+    padding-left: 8px;
+    position: relative;
+  }
+  .comp ul li::before {
+    content: "›";
+    position: absolute;
+    left: 0;
+    color: #9ca3af;
+  }
+
+  /* Highlighted comps */
+  .comp.highlight-llm {
+    background: #d1fae5;
+    border: 1.5px solid #10b981;
+    color: #064e3b;
+  }
+  .comp.highlight-dist {
+    background: #fee2e2;
+    border: 1.5px solid #f87171;
+    color: #7f1d1d;
+  }
+  .comp.highlight-eval {
+    background: #ffedd5;
+    border: 1.5px solid #fb923c;
+    color: #7c2d12;
+  }
+
+  /* Badge for novelty */
+  .badge {
+    display: inline-block;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .badge-novel { background: #ef4444; color: #fff; }
+  .badge-core  { background: #3b82f6; color: #fff; }
+
+  /* ─── ARROW SECTION ─── */
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0;
+    gap: 0;
+    position: relative;
+  }
+  .arrow-line {
+    width: 100%;
+    height: 1px;
+    background: transparent;
+  }
+
+  /* ─── VERTICAL FLOW CONNECTOR ─── */
+  .flow-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+  .flow-arrow-block {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+  }
+  .flow-arrow-block svg {
+    display: block;
+  }
+
+  /* ─── HORIZONTAL FLOW BAR ─── */
+  .hflow {
+    display: flex;
+    align-items: stretch;
+    margin-top: 10px;
+    gap: 0;
+  }
+  .hflow-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .hflow-item:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: -1px;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: rgba(0,0,0,0.08);
+  }
+
+  /* ─── DATA FLOW LEGEND ─── */
+  .flow-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    margin-top: 18px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+  }
+  .flow-legend-title {
+    width: 100%;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 4px;
+  }
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 8.5px;
+    color: #374151;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    font-size: 10px;
+  }
+  .flow-dot {
+    width: 14px; height: 2px;
+    border-radius: 1px;
+  }
+
+  /* ─── CAPTION ─── */
+  .caption {
+    margin-top: 20px;
+    max-width: 860px;
+    text-align: center;
+    font-size: 10.5px;
+    color: #374151;
+    line-height: 1.7;
+  }
+  .caption strong { color: #1e293b; }
+  .fig-label {
+    font-weight: 700;
+    font-size: 10.5px;
+    color: #1e293b;
+    margin-right: 4px;
+  }
+
+  /* ─── SEPARATOR ─── */
+  .sep {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 5px 0;
+    position: relative;
+  }
+  .sep-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .sep-line {
+    width: 2px;
+    background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+    height: 16px;
+  }
+  .sep-head {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #64748b;
+  }
+  .sep-label {
+    font-size: 7.5px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+    margin-top: 2px;
+  }
+
+  /* ─── PROC SUB-GRID ─── */
+  .proc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .proc-col {
+    background: rgba(255,255,255,0.55);
+    border-radius: 6px;
+    padding: 8px 7px;
+    border: 1px solid rgba(0,0,0,0.07);
+  }
+  .proc-col-title {
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #374151;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(0,0,0,0.09);
+  }
+
+  /* responsive */
+  @media (max-width: 720px) {
+    .proc-grid { grid-template-columns: repeat(2, 1fr); }
+    .comp-grid { flex-direction: column; }
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .diagram-wrap { box-shadow: none; border: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  System Architecture: Automatic Quiz Generation and Evaluation System<br>using Large Language Models and Distractor Optimization
+</div>
+<div class="page-subtitle">Research System Architecture — AI &amp; NLP Pipeline Design</div>
+
+<div class="diagram-wrap">
+
+  <!-- ═══════════════════════════════════════════════════════
+       LAYER 1 — USER LAYER
+  ═══════════════════════════════════════════════════════ -->
+  <div class="layer l-user">
+    <div class="layer-label"><span class="dot"></span>Layer 1 — User Interface Layer (Frontend)</div>
+    <div class="comp-grid">
+
+      <div class="comp-group">
+        <div class="comp-group-title">Web Framework</div>
+        <div class="comp">
+          <span class="icon">🌐</span>
+          <div>
+            <strong>Flask + Jinja2 + Bootstrap</strong>
+            <ul>
+              <li>Responsive HTML/CSS UI</li>
+              <li>Template inheritance</li>
+              <li>AJAX-based quiz flow</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-group">
+        <div class="comp-group-title">User Roles</div>
+        <div class="comp">
+          <span class="icon">🛡️</span>
+          <div>
+            <strong>Admin</strong>
+            <ul>
+              <li>Upload resources</li>
+              <li>Generate &amp; configure quiz</li>
+              <li>Release results</li>
+            </ul>
+          </div>
+        </div>
+        <div class="comp">
+          <span class="icon">🎓</span>
+          <div>
+            <strong>Student / User</strong>
+            <ul>
+              <li>Attempt quiz</li>
+              <li>View performance</li>
+              <li>Receive notifications</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-group">
+        <div class="comp-group-title">UI Features</div>
+        <div class="comp"><span class="icon">📤</span><div><strong>Upload Resource</strong><ul><li>PDF / Image / Text</li></ul></div></div>
+        <div class="comp"><span class="icon">⚡</span><div><strong>Generate Quiz</strong><ul><li>Topic selection, Bloom level, Difficulty</li></ul></div></div>
+        <div class="comp"><span class="icon">📝</span><div><strong>Attempt Quiz</strong><ul><li>MCQ interface, timer</li></ul></div></div>
+        <div class="comp"><span class="icon">📊</span><div><strong>View Performance</strong><ul><li>Score, accuracy graphs</li></ul></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ARROW ↓ -->
+  <div class="sep">
+    <div class="sep-arrow">
+      <div class="sep-line"></div>
+      <div class="sep-head"></div>
+    </div>
+    <span class="sep-label" style="margin-left:8px">HTTP Request / Response</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LAYER 2 — APPLICATION LAYER
+  ═══════════════════════════════════════════════════════ -->
+  <div class="layer l-app">
+    <div class="layer-label"><span class="dot"></span>Layer 2 — Application Layer (Backend — Flask)</div>
+    <div class="comp-grid">
+
+      <div class="comp-group">
+        <div class="comp-group-title">Routing</div>
+        <div class="comp"><span class="icon">🗺️</span><div><strong>Route Handlers</strong><ul><li>Flask Blueprints</li><li>RESTful URL mapping</li></ul></div></div>
+      </div>
+
+      <div class="comp-group">
+        <div class="comp-group-title">Auth</div>
+        <div class="comp"><span class="icon">🔐</span><div><strong>Authentication Module</strong><ul><li>Flask-Login</li><li>Role-based access</li><li>Session management</li></ul></div></div>
+      </div>
+
+      <div class="comp-group">
+        <div class="comp-group-title">Management</div>
+        <div class="comp"><span class="icon">📋</span><div><strong>Assignment Management</strong><ul><li>Attempt tracking</li><li>Submission control</li><li>Result release</li></ul></div></div>
+        <div class="comp"><span class="icon">🏫</span><div><strong>Classroom Management</strong><ul><li>Class-user mapping</li><li>Assignment distribution</li></ul></div></div>
+      </div>
+
+      <div class="comp-group">
+        <div class="comp-group-title">API Endpoints</div>
+        <div class="comp"><span class="icon">🔌</span><div><strong>Topic Extraction API</strong><ul><li>/api/extract-topics</li></ul></div></div>
+        <div class="comp"><span class="icon">🔌</span><div><strong>Quiz Generation API</strong><ul><li>/api/generate-quiz</li><li>/api/preview-quiz</li></ul></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ARROW ↓ -->
+  <div class="sep">
+    <div class="sep-arrow">
+      <div class="sep-line"></div>
+      <div class="sep-head"></div>
+    </div>
+    <span class="sep-label" style="margin-left:8px">Internal Function Calls / Task Dispatch</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LAYER 3 — PROCESSING LAYER
+  ═══════════════════════════════════════════════════════ -->
+  <div class="layer l-proc">
+    <div class="layer-label"><span class="dot"></span>Layer 3 — Processing Layer (Core Intelligence Engine)</div>
+    <div class="proc-grid">
+
+      <!-- 3a Resource Processing -->
+      <div class="proc-col">
+        <div class="proc-col-title">3a · Resource Processing</div>
+        <div class="comp" style="margin-bottom:5px"><span class="icon">📁</span><div><strong>File Upload Handler</strong><ul><li>Multipart form / file save</li></ul></div></div>
+        <div class="comp" style="margin-bottom:5px"><span class="icon">🔍</span><div><strong>Text Extraction</strong><ul><li>PDF → PyPDF2 / pdfminer</li><li>Image → OCR (pytesseract)</li><li>Plain text passthrough</li></ul></div></div>
+        <div class="comp"><span class="icon">✂️</span><div><strong>Preprocessing</strong><ul><li>Cleaning &amp; normalization</li><li>Sentence tokenization</li><li>Stop-word removal</li></ul></div></div>
+      </div>
+
+      <!-- 3b Topic Extraction -->
+      <div class="proc-col">
+        <div class="proc-col-title">3b · Topic Extraction Engine</div>
+        <div class="comp" style="margin-bottom:5px"><span class="icon">🧠</span><div><strong>NLP Topic Segmentation</strong><ul><li>spaCy / NLTK pipeline</li><li>Sentence boundary detection</li><li>Topic clustering</li></ul></div></div>
+        <div class="comp"><span class="icon">🔑</span><div><strong>Keyword Extraction</strong><ul><li>TF-IDF based ranking</li><li>Named entity recognition</li><li>Topic label generation</li></ul></div></div>
+      </div>
+
+      <!-- 3c Quiz Generation -->
+      <div class="proc-col">
+        <div class="proc-col-title">3c · Quiz Generation Engine</div>
+        <div class="comp highlight-llm" style="margin-bottom:5px">
+          <span class="icon">🤖</span>
+          <div>
+            <strong>LLM Integration</strong> <span class="badge badge-core">CORE</span>
+            <ul>
+              <li>Ollama (local inference)</li>
+              <li>OpenAI / HuggingFace API</li>
+              <li>Retry &amp; fallback logic</li>
+            </ul>
+          </div>
+        </div>
+        <div class="comp" style="margin-bottom:5px"><span class="icon">📜</span><div><strong>Prompt Engineering</strong><ul><li>JSON-structured output</li><li>Context injection</li><li>Dual parser (JSON+text)</li></ul></div></div>
+        <div class="comp" style="margin-bottom:5px"><span class="icon">📚</span><div><strong>Bloom's Taxonomy Control</strong><ul><li>Remember→Evaluate levels</li><li>Per-level prompt templates</li></ul></div></div>
+        <div class="comp"><span class="icon">⚖️</span><div><strong>Difficulty Controller</strong><ul><li>Easy / Medium / Hard</li><li>Adaptive distribution</li></ul></div></div>
+      </div>
+
+      <!-- 3d Distractor Generation -->
+      <div class="proc-col">
+        <div class="proc-col-title">3d · Distractor Generation Module</div>
+        <div class="comp highlight-dist" style="margin-bottom:5px">
+          <span class="icon">🎯</span>
+          <div>
+            <strong>Semantic Similarity Engine</strong> <span class="badge badge-novel">NOVEL</span>
+            <ul>
+              <li>Sentence-BERT embeddings</li>
+              <li>Cosine similarity scoring</li>
+              <li>Plausibility threshold filter</li>
+            </ul>
+          </div>
+        </div>
+        <div class="comp highlight-dist" style="margin-bottom:5px">
+          <span class="icon">📐</span>
+          <div>
+            <strong>TF-IDF / Embedding Filter</strong>
+            <ul>
+              <li>Distractor corpus ranking</li>
+              <li>Domain relevance scoring</li>
+            </ul>
+          </div>
+        </div>
+        <div class="comp highlight-dist" style="margin-bottom:5px">
+          <span class="icon">🌈</span>
+          <div>
+            <strong>Plausibility &amp; Diversity Optimizer</strong>
+            <ul>
+              <li>Lexical diversity check</li>
+              <li>Semantic cluster balancing</li>
+            </ul>
+          </div>
+        </div>
+        <div class="comp highlight-dist">
+          <span class="icon">🔄</span>
+          <div>
+            <strong>Duplicate Question Detector</strong>
+            <ul>
+              <li>TF-IDF cosine similarity</li>
+              <li>Stem normalization</li>
+              <li>Threshold: &lt; 0.85 similarity</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ARROW ↓ + BIDIRECTIONAL TO EVAL -->
+  <div style="display:flex; align-items:flex-start; gap:10px; margin:5px 0;">
+    <!-- center down arrow -->
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding-top:2px;">
+      <div class="sep-arrow">
+        <div class="sep-line"></div>
+        <div class="sep-head"></div>
+      </div>
+      <span class="sep-label">Filtered Questions → DB</span>
+    </div>
+    <!-- right side up arrow for eval -->
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding-top:2px;">
+      <div class="sep-arrow" style="transform:rotate(180deg)">
+        <div class="sep-line" style="background:linear-gradient(180deg,#fb923c,#fed7aa)"></div>
+        <div class="sep-head" style="border-top-color:#f97316"></div>
+      </div>
+      <span class="sep-label" style="border-color:#fb923c; color:#c2410c">Questions → Evaluation Engine</span>
+    </div>
+  </div>
+
+  <!-- LAYER 3 + 4 side-by-side -->
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:start;">
+
+    <!-- ═══════════════════════════════════════════════════════
+         LAYER 4 — EVALUATION LAYER (left half)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="layer l-eval" style="height:100%">
+      <div class="layer-label"><span class="dot"></span>Layer 4 — Evaluation Layer <span class="badge badge-novel" style="margin-left:4px">RESEARCH CONTRIBUTION</span></div>
+
+      <div class="comp highlight-eval" style="margin-bottom:6px">
+        <span class="icon">🏅</span>
+        <div>
+          <strong>Evaluation Metrics Engine</strong>
+          <ul>
+            <li>Standalone analysis module</li>
+            <li>Runs post quiz-generation</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:6px;">
+        <div class="comp highlight-eval"><span class="icon">📏</span><div><strong>Distractor Plausibility</strong><ul><li>Cosine sim score</li></ul></div></div>
+        <div class="comp highlight-eval"><span class="icon">🌐</span><div><strong>Distractor Diversity</strong><ul><li>Lexical entropy</li></ul></div></div>
+        <div class="comp highlight-eval"><span class="icon">🔗</span><div><strong>Context Relevance</strong><ul><li>Q vs. source similarity</li></ul></div></div>
+        <div class="comp highlight-eval"><span class="icon">🔁</span><div><strong>Duplicate Rate</strong><ul><li>TF-IDF cosine &lt; 0.85</li></ul></div></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:6px;">
+        <div class="comp"><span class="icon">📈</span><div><strong>Graph Generator</strong><ul><li>Matplotlib / Seaborn</li><li>Bar, scatter, line plots</li></ul></div></div>
+        <div class="comp"><span class="icon">🗺️</span><div><strong>Correlation Heatmap</strong><ul><li>Metric cross-correlation</li><li>Seaborn heatmap</li></ul></div></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+        <div class="comp"><span class="icon">📄</span><div><strong>CSV Reports</strong><ul><li>Per-question metrics</li><li>Session summary</li></ul></div></div>
+        <div class="comp"><span class="icon">🖼️</span><div><strong>Performance Graphs</strong><ul><li>PNG/SVG export</li><li>Research-grade plots</li></ul></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+         LAYER 5 — DATA LAYER (right half)
+    ═══════════════════════════════════════════════════════ -->
+    <div class="layer l-data" style="height:100%">
+      <div class="layer-label"><span class="dot"></span>Layer 5 — Data Layer</div>
+
+      <div class="comp" style="margin-bottom:6px">
+        <span class="icon">🗄️</span>
+        <div>
+          <strong>SQLite / MySQL Database</strong>
+          <ul>
+            <li>SQLAlchemy ORM</li>
+            <li>Migration support (Flask-Migrate)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+        <div class="comp"><span class="icon">👤</span><div><strong>Users</strong><ul><li>id, role, email, password_hash</li></ul></div></div>
+        <div class="comp"><span class="icon">📂</span><div><strong>Resources</strong><ul><li>id, file_path, extracted_text</li></ul></div></div>
+        <div class="comp"><span class="icon">🏷️</span><div><strong>Topics</strong><ul><li>id, resource_id, label</li></ul></div></div>
+        <div class="comp"><span class="icon">❓</span><div><strong>Questions</strong><ul><li>id, text, options, answer, bloom, difficulty</li></ul></div></div>
+        <div class="comp"><span class="icon">📋</span><div><strong>Assignments</strong><ul><li>id, class_id, questions, deadline</li></ul></div></div>
+        <div class="comp"><span class="icon">🖊️</span><div><strong>Attempts</strong><ul><li>id, user_id, assignment_id, score, is_submitted</li></ul></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ARROW ↓ -->
+  <div class="sep" style="margin-top:6px">
+    <div class="sep-arrow">
+      <div class="sep-line"></div>
+      <div class="sep-head"></div>
+    </div>
+    <span class="sep-label" style="margin-left:8px">Task Dispatch / Background Processing</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       LAYER 6 — ASYNC / LAYER 7 — EXTERNAL (side by side)
+  ═══════════════════════════════════════════════════════ -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start;">
+
+    <div class="layer l-async">
+      <div class="layer-label"><span class="dot"></span>Layer 6 — Asynchronous Processing Layer</div>
+      <div class="comp" style="margin-bottom:6px">
+        <span class="icon">⚙️</span>
+        <div>
+          <strong>Celery Worker</strong>
+          <ul>
+            <li>Redis as message broker</li>
+            <li>Celery Beat scheduler</li>
+            <li>Windows-compatible (solo pool)</li>
+          </ul>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px;">
+        <div class="comp"><span class="icon">🤖</span><div><strong>Quiz Generation Task</strong><ul><li>Async LLM call</li><li>Non-blocking UI</li></ul></div></div>
+        <div class="comp"><span class="icon">📧</span><div><strong>Email Notification Task</strong><ul><li>SMTP dispatch</li><li>Assignment alerts</li></ul></div></div>
+        <div class="comp"><span class="icon">🔓</span><div><strong>Result Release Task</strong><ul><li>Scheduled unlock</li><li>Student notification</li></ul></div></div>
+        <div class="comp"><span class="icon">⏰</span><div><strong>Deadline Monitor</strong><ul><li>Periodic beat task</li><li>Auto-submit overdue</li></ul></div></div>
+      </div>
+    </div>
+
+    <div class="layer l-ext">
+      <div class="layer-label"><span class="dot"></span>Layer 7 — External Services</div>
+      <div class="comp highlight-llm" style="margin-bottom:6px">
+        <span class="icon">🧬</span>
+        <div>
+          <strong>LLM Service</strong>
+          <ul>
+            <li>Ollama (local, llama3 / mistral)</li>
+            <li>OpenAI API (GPT-4o)</li>
+            <li>HuggingFace Inference API</li>
+          </ul>
+        </div>
+      </div>
+      <div class="comp">
+        <span class="icon">✉️</span>
+        <div>
+          <strong>Email Service (SMTP)</strong>
+          <ul>
+            <li>Gmail / Outlook SMTP</li>
+            <li>Flask-Mail integration</li>
+            <li>HTML email templates</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DATA FLOW LEGEND
+  ═══════════════════════════════════════════════════════ -->
+  <div class="flow-legend">
+    <div class="flow-legend-title">Data Flow Legend</div>
+    <div class="flow-item"><span style="background:#6366f1;width:22px;height:2px;display:inline-block;border-radius:1px"></span> User uploads resource → Backend → Processing Layer</div>
+    <div class="flow-item"><span style="background:#22c55e;width:22px;height:2px;display:inline-block;border-radius:1px"></span> Text → Topic Extraction → Quiz Generation Engine</div>
+    <div class="flow-item"><span style="background:#ef4444;width:22px;height:2px;display:inline-block;border-radius:1px"></span> Quiz Gen → Distractor Module → Filtered Questions</div>
+    <div class="flow-item"><span style="background:#a855f7;width:22px;height:2px;display:inline-block;border-radius:1px"></span> Filtered Questions → Database (SQLite/MySQL)</div>
+    <div class="flow-item"><span style="background:#3b82f6;width:22px;height:2px;display:inline-block;border-radius:1px"></span> User Attempts Quiz → Attempt stored in DB → Score computed</div>
+    <div class="flow-item"><span style="background:#f97316;width:22px;height:2px;display:inline-block;border-radius:1px"></span> Evaluation Engine reads Questions → Generates metrics &amp; graphs</div>
+    <div class="flow-item"><span style="background:#eab308;width:22px;height:2px;display:inline-block;border-radius:1px"></span> Admin releases results → Celery dispatches email notifications</div>
+  </div>
+
+</div><!-- end diagram-wrap -->
+
+<!-- FIGURE CAPTION -->
+<div class="caption">
+  <span class="fig-label">Fig. 1.</span>
+  Proposed seven-layer architecture of the <strong>Automatic Quiz Generation and Evaluation System</strong>.
+  The system integrates a Large Language Model (LLM) inference engine with a semantic
+  <strong>Distractor Optimization Module</strong> (Layer 3d) that employs Sentence-BERT embeddings and TF-IDF cosine similarity
+  to generate plausible, diverse, and non-redundant distractors. A dedicated standalone
+  <strong>Evaluation Metrics Engine</strong> (Layer 4) quantifies distractor plausibility, lexical diversity,
+  context relevance, and duplicate question rate, producing research-grade CSV reports and correlation heatmaps.
+  Asynchronous task execution via Celery ensures non-blocking quiz generation and timely result notifications.
+</div>
+
+</body>
+</html>

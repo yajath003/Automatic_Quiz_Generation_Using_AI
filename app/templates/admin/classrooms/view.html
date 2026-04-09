@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('admin.list_classrooms') }}" class="btn btn-outline-secondary btn-sm mb-3">
+        <i class="bi bi-arrow-left me-1"></i> Back to Classrooms
+    </a>
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="h3 mb-1">{{ classroom.name }}</h2>
+            <p class="text-muted mb-0">{{ classroom.description or 'No description provided.' }}</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-primary fs-6 px-3 py-2">
+                <i class="bi bi-people-fill me-2"></i>{{ memberships|length }} Members
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h5 class="mb-0">Class Roster</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Student Name</th>
+                        <th>Email</th>
+                        <th>Joined Date</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in memberships %}
+                    <tr>
+                        <td class="ps-4 fw-medium">
+                            <i class="bi bi-person-circle text-secondary me-2"></i>
+                            {{ m.user.username }}
+                        </td>
+                        <td class="text-muted">{{ m.user.email }}</td>
+                        <td>{{ m.joined_at.strftime('%Y-%m-%d %H:%M') if m.joined_at else 'Unknown' }}</td>
+                        <td class="text-end pe-4">
+                            <form action="{{ url_for('admin.remove_classroom_user', class_id=classroom.id, user_id=m.user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove {{ m.user.username }} from this classroom?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-person-x me-1"></i> Remove
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="bi bi-people fs-1 d-block mb-3 text-secondary"></i>
+                            <p class="mb-0 fs-5">No students have joined this classroom yet.</p>
+                            <small>Students can join using the class listing in their dashboard.</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

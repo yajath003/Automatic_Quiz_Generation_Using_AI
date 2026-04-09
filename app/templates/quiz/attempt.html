@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Quiz Header -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">{{ quiz.resource.title }}</h4>
+                <div class="text-secondary small">
+                    <span class="badge bg-primary bg-opacity-10 text-primary me-2">{{ question.question_type }}</span>
+                    <span>Question {{ index + 1 }} of {{ total }}</span>
+                </div>
+            </div>
+            <div class="text-end">
+                <div class="progress" style="width: 150px; height: 10px;">
+                    <div class="progress-bar" role="progressbar" style="width: {{ ((index + 1) / total) * 100 }}%">
+                    </div>
+                </div>
+                <small class="text-secondary">{{ ((index + 1) / total * 100)|round(0)|int }}% Complete</small>
+            </div>
+        </div>
+
+        <!-- Question Card -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h5 class="fw-medium mb-0">Question Details</h5>
+                <div class="d-flex gap-2">
+                    <div id="total-timer-wrapper" class="d-flex align-items-center">
+                        <small class="text-secondary me-2">Total:</small>
+                        <span class="badge bg-light text-dark border fw-normal" id="total-timer">00:00</span>
+                    </div>
+                    <div id="question-timer-wrapper" class="d-flex align-items-center">
+                        <small class="text-secondary me-2">This Question:</small>
+                        <span class="badge bg-info fw-normal" id="question-timer">00:00</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <h5 class="fw-medium mb-4">{{ question.question_text }}</h5>
+
+                <form id="quiz-form" method="POST" action="{{ url_for('quiz.attempt', attempt_id=attempt.id) }}">
+                    <!-- Time Tracking Hidden Inputs -->
+                    <input type="hidden" name="total_time_spent" id="total-time-input" value="0">
+                    <input type="hidden" name="question_time_spent" id="question-time-input" value="0">
+
+                    {% if question.question_type == 'MCQ' %}
+                    <div class="list-group mb-4">
+                        {% set options = question.options|from_json %}
+                        {% for key, value in options.items() %}
+                        <label
+                            class="list-group-item list-group-item-action p-3 d-flex align-items-center cursor-pointer">
+                            <input class="form-check-input me-3" type="radio" name="answer" value="{{ key }}" required>
+                            <span class="fw-bold me-2">{{ key }}.</span> {{ value }}
+                        </label>
+                        {% endfor %}
+                    </div>
+
+                    {% elif question.question_type == 'MSQ' %}
+                    <div class="list-group mb-4">
+                        {% set options = question.options|from_json %}
+                        {% for key, value in options.items() %}
+                        <label
+                            class="list-group-item list-group-item-action p-3 d-flex align-items-center cursor-pointer">
+                            <input class="form-check-input me-3" type="checkbox" name="answer" value="{{ key }}">
+                            <span class="fw-bold me-2">{{ key }}.</span> {{ value }}
+                        </label>
+                        {% endfor %}
+                        <small class="text-secondary mt-2 d-block">* Select all that apply</small>
+                    </div>
+
+                    {% elif question.question_type == 'NAT' %}
+                    <div class="mb-4">
+                        <label class="form-label text-secondary">Your Answer:</label>
+                        <input type="text" name="answer" class="form-control form-control-lg"
+                            placeholder="Type your answer here..." autocomplete="off" required>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-end mt-4">
+                        {% if index + 1 < total %} <button type="submit" name="action" value="next"
+                            class="btn btn-primary px-4">
+                            Next Question <i class="bi bi-arrow-right ms-1"></i>
+                            </button>
+                            {% else %}
+                            <button type="submit" name="action" value="submit" class="btn btn-success px-4"
+                                id="submit-quiz-btn">
+                                Submit Quiz <i class="bi bi-check-circle ms-1"></i>
+                            </button>
+                            {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const attemptId = "{{ attempt.id }}";
+        const totalTimerDisplay = document.getElementById('total-timer');
+        const questionTimerDisplay = document.getElementById('question-timer');
+        const totalTimeInput = document.getElementById('total-time-input');
+        const questionTimeInput = document.getElementById('question-time-input');
+        const quizForm = document.getElementById('quiz-form');
+        const submitBtn = document.getElementById('submit-quiz-btn');
+
+        // Load total time from localStorage
+        let totalSeconds = parseInt(localStorage.getItem(`quiz_total_time_${attemptId}`)) || 0;
+        let questionSeconds = 0;
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimers() {
+            totalSeconds++;
+            questionSeconds++;
+
+            // Update displays
+            totalTimerDisplay.textContent = formatTime(totalSeconds);
+            questionTimerDisplay.textContent = formatTime(questionSeconds);
+
+            // Update hidden inputs
+            totalTimeInput.value = totalSeconds;
+            questionTimeInput.value = questionSeconds;
+
+            // Update localStorage for total time
+            localStorage.setItem(`quiz_total_time_${attemptId}`, totalSeconds);
+
+            // Update badge color for question timer
+            if (questionSeconds >= 120) {
+                questionTimerDisplay.classList.remove('bg-info', 'bg-warning');
+                questionTimerDisplay.classList.add('bg-danger');
+            } else if (questionSeconds >= 60) {
+                questionTimerDisplay.classList.remove('bg-info', 'bg-danger');
+                questionTimerDisplay.classList.add('bg-warning', 'text-dark');
+            }
+        }
+
+        // Initialize displays
+        totalTimerDisplay.textContent = formatTime(totalSeconds);
+        questionTimerDisplay.textContent = formatTime(questionSeconds);
+
+        // Start interval
+        const timerInterval = setInterval(updateTimers, 1000);
+
+        // Clear storage on final submission
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function () {
+                localStorage.removeItem(`quiz_total_time_${attemptId}`);
+            });
+        }
+
+        // Also clear if form is submitted with action 'submit'
+        quizForm.addEventListener('submit', function (e) {
+            const action = e.submitter ? e.submitter.getAttribute('value') : null;
+            if (action === 'submit') {
+                localStorage.removeItem(`quiz_total_time_${attemptId}`);
+            }
+        });
+    });
+</script>
+{% endblock %}

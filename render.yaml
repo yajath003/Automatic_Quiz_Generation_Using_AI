@@ -1,0 +1,76 @@
+databases:
+  - name: quiz-db
+    databaseName: quiz_production
+    user: quiz_user
+    plan: free
+
+services:
+  - type: redis
+    name: quiz-redis
+    plan: free
+    ipAllowList: []
+
+  - type: web
+    name: flask-quiz-app
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt && flask db upgrade"
+    startCommand: "gunicorn run:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quiz-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: quiz-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/auto
+      - key: AI_PROVIDER
+        value: openrouter
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+
+  - type: worker
+    name: quiz-celery-worker
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A celery_worker.celery worker --beat --loglevel=info"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: quiz-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: quiz-redis
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: flask-quiz-app
+          envVarKey: SECRET_KEY
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/auto
+      - key: AI_PROVIDER
+        value: openrouter
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false

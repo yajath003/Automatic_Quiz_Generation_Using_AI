@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="card auth-card shadow-sm border-0">
+        <div class="card-body p-4 p-sm-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-journal-text text-primary fs-1"></i>
+                <h4 class="fw-bold mt-3">Sign In</h4>
+                <p class="text-secondary text-sm">Welcome back to the Quiz System</p>
+            </div>
+
+            <form action="" method="post">
+                <div class="mb-3">
+                    <label for="username" class="form-label text-secondary small fw-bold">USERNAME</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i
+                                class="bi bi-person text-secondary"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0 bg-light" id="username"
+                            name="username" placeholder="Enter your username" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="form-label text-secondary small fw-bold">PASSWORD</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i
+                                class="bi bi-lock text-secondary"></i></span>
+                        <input type="password" class="form-control border-start-0 ps-0 bg-light" id="password"
+                            name="password" placeholder="Enter your password" required>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary py-2 text-uppercase fw-bold text-sm">Sign In</button>
+                </div>
+            </form>
+
+            <div class="text-center mt-4">
+                <p class="text-secondary small mb-0">Don't have an account?</p>
+                <a href="{{ url_for('auth.register') }}" class="fw-bold text-decoration-none">Create Account</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

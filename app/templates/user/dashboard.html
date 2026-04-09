@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">My Dashboard</h4>
+        <p class="text-secondary small mb-0">Welcome back, {{ current_user.username }}!</p>
+    </div>
+    <a href="{{ url_for('ai_engine.process') }}" class="btn btn-primary btn-sm"><i
+            class="bi bi-lightning-charge me-1"></i> Generate New Quiz</a>
+</div>
+
+<!-- Assignments Section -->
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card border-primary border-top border-4 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-envelope-paper me-2"></i>Pending Class Quizzes</h6>
+                {% if current_user.is_admin() %}
+                <a href="{{ url_for('admin_assignments.manage') }}" class="btn btn-sm btn-outline-primary">Manage Assignments</a>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for item in assignments %}
+                    {% set assignment = item.assignment %}
+                    {% set is_attempted = item.is_attempted %}
+                    {% set status = item.status %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center p-3 {{ 'bg-light' if not is_attempted else '' }}">
+                        <div>
+                            <h6 class="mb-0 fw-bold text-dark">{{ assignment.title or assignment.quiz.resource.title }}</h6>
+                            <small class="text-muted">Assigned by: {{ item.admin_name }} • {{ assignment.quiz.total_questions }} Qs</small>
+                            
+                            {% if assignment.target_class_id %}
+                            <div class="small text-secondary mt-1"><i class="bi bi-mortarboard me-1"></i> Class: <strong>{{ assignment.target_class.name }}</strong></div>
+                            {% endif %}
+                            
+                            {% if assignment.due_date %}
+                            <div class="small text-danger mt-1"><i class="bi bi-calendar-event me-1"></i> Due: <strong>{{ assignment.due_date.strftime('%b %d, %Y %I:%M %p') }}</strong></div>
+                            {% endif %}
+                            
+                            {% if is_attempted %}
+                                {% if assignment.results_released %}
+                                <span class="badge bg-success bg-opacity-10 text-success mt-1">Completed ({{ status.score|round(0)|int }}%)</span>
+                                {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary mt-1"><i class="bi bi-lock me-1"></i> Score Pending Release</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="badge bg-warning bg-opacity-10 text-warning mt-1">Pending</span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            {% if is_attempted %}
+                                {% if assignment.results_released %}
+                                <a href="{{ url_for('quiz.result', attempt_id=status.quiz_attempt_id) }}" class="btn btn-primary btn-sm">
+                                    View Result
+                                </a>
+                                {% else %}
+                                <button class="btn btn-secondary btn-sm" disabled title="Results not published yet">
+                                    View Result
+                                </button>
+                                {% endif %}
+                            {% else %}
+                            <form action="{{ url_for('quiz.start') }}" method="post" class="d-inline">
+                                <input type="hidden" name="resource_id" value="{{ assignment.quiz.resource_id }}">
+                                <input type="hidden" name="retry_quiz_id" value="{{ assignment.quiz.id }}">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    Start Attempt
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if current_user.is_admin() and assignment.admin_id == current_user.id %}
+                            <a href="{{ url_for('admin_assignments.export_report', assign_id=assignment.id) }}" 
+                               class="btn btn-sm btn-outline-secondary ms-2" title="Export CSV">
+                                <i class="bi bi-download"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-secondary">
+                        <i class="bi bi-clipboard-check fs-4 d-block mb-2"></i>
+                        No active assignments.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon primary">
+                    <i class="bi bi-trophy"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Average Score</h6>
+                    <h3>{{ avg_score|round(1) }}%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon success">
+                    <i class="bi bi-check-circle"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Quizzes Completed</h6>
+                    <h3>{{ total_completed }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon warning">
+                    <i class="bi bi-bar-chart-steps"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Bloom Coverage</h6>
+                    <h3>High</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="row g-4">
+    <!-- Recent Quizzes -->
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Recent Quizzes</span>
+                <a href="{{ url_for('quiz.my_quizzes') }}" class="btn btn-link btn-sm text-decoration-none p-0">View
+                    All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for attempt in recent_quizzes %}
+                    <div class="list-group-item p-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="bg-light p-2 rounded">
+                                <i class="bi bi-file-earmark-text text-primary"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-medium">{{ attempt.quiz.resource.title }}</h6>
+                                <small class="text-secondary">{{ attempt.completed_at.strftime('%b %d, %Y') }} • {{
+                                    attempt.quiz.total_questions }} Questions</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div
+                                class="h6 mb-0 {{ 'text-success' if attempt.total_score >= 80 else 'text-warning' if attempt.total_score >= 60 else 'text-danger' }}">
+                                {{ attempt.total_score|round(0)|int }}%
+                            </div>
+                            <small class="text-secondary">
+                                {% if attempt.total_score >= 80 %}Excellent{% elif attempt.total_score >= 60 %}Good{%
+                                else %}Needs Improvement{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="list-group-item p-4 text-center text-secondary">
+                        <i class="bi bi-journal-x fs-4 d-block mb-2"></i>
+                        No quizzes completed yet.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Status -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">Account Status</div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center rounded-circle"
+                            style="width: 48px; height: 48px; font-size: 1.25rem;">
+                            {{ current_user.username[0].upper() }}
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="mb-0">{{ current_user.username }}</h6>
+                        <small class="text-secondary">{{ current_user.email or 'No email set' }}</small>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="mb-3">
+                    <label class="small text-secondary fw-bold mb-1">ACCOUNT TYPE</label>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-badge me-2 text-primary"></i>
+                        <span>{{ current_user.role|capitalize }}</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="small text-secondary fw-bold mb-1">STATUS</label>
+                    <div>
+                        {% if current_user.is_flagged %}
+                        <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3 py-2"><i
+                                class="bi bi-flag-fill me-1"></i> Flagged</span>
+                        {% else %}
+                        <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2"><i
+                                class="bi bi-check-circle-fill me-1"></i> Active</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resource Library -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+                <h6 class="mb-0 fw-bold">Resource Library</h6>
+                <a href="{{ url_for('user.upload') }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-cloud-upload me-1"></i> Upload New
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs nav-justified" id="resourceTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="global-tab" data-bs-toggle="tab" data-bs-target="#global"
+                            type="button" role="tab" aria-selected="true">
+                            <i class="bi bi-globe me-1"></i> Global Resources
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal"
+                            type="button" role="tab" aria-selected="false">
+                            <i class="bi bi-person-workspace me-1"></i> My Uploads
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content p-3" id="resourceTabsContent">
+                    <!-- Global Resources -->
+                    <div class="tab-pane fade show active" id="global" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Added Date</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for resource in admin_resources %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-file-earmark-text text-primary me-2 fs-5"></i>
+                                                <div>
+                                                    <div class="fw-medium">{{ resource.title }}</div>
+                                                    <small class="text-secondary">{{ resource.description }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-secondary small">{{ resource.created_at.strftime('%Y-%m-%d') }}
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="{{ url_for('ai_engine.process') }}"
+                                                class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-lightning-charge me-1"></i> Generate Quiz
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-secondary">
+                                            <i class="bi bi-inbox fs-4 d-block mb-2"></i>
+                                            No global resources available.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- My Uploads -->
+                    <div class="tab-pane fade" id="personal" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>File</th>
+                                        <th>Uploaded</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for resource in my_resources %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-file-earmark-word text-success me-2 fs-5"></i>
+                                                <div>
+                                                    <div class="fw-medium">{{ resource.title }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="small text-secondary">{{ resource.file_name }}</td>
+                                        <td class="text-secondary small">{{ resource.created_at.strftime('%Y-%m-%d') }}
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group">
+                                                <a href="{{ url_for('ai_engine.process') }}"
+                                                    class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-lightning-charge"></i>
+                                                </a>
+                                                <form
+                                                    action="{{ url_for('user.delete_resource', resource_id=resource.id) }}"
+                                                    method="post" class="d-inline"
+                                                    onsubmit="return confirm('Delete this resource?');">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-secondary">
+                                            <i class="bi bi-cloud-upload fs-4 d-block mb-2"></i>
+                                            You haven't uploaded any resources yet.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

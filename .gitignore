@@ -1,0 +1,13 @@
+.venv/
+venv/
+env/
+
+__pycache__/
+*.pyc
+
+# ML files
+*.pkl
+*.pt
+*.h5
+*.csv
+*.zip

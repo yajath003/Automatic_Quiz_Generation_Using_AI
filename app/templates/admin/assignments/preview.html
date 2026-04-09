@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="fw-bold mb-1">Preview Assignment: {{ assignment.title }}</h4>
+            <p class="text-secondary small mb-0">Status: <span class="badge bg-warning text-dark">{{ assignment.status|upper }}</span></p>
+        </div>
+        <div class="d-flex gap-2">
+            <form action="{{ url_for('admin.delete_assignment', assign_id=assignment.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to discard this draft?');">
+                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Discard</button>
+            </form>
+            <form action="{{ url_for('admin.regenerate_assignment', assign_id=assignment.id) }}" method="POST" onsubmit="return confirm('This will discard these questions and generate a new set using the AI. Proceed?');">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-repeat"></i> Regenerate</button>
+            </form>
+            <form action="{{ url_for('admin.publish_assignment', assign_id=assignment.id) }}" method="POST" onsubmit="return confirm('Ready to publish this to your students? It cannot be reverted to a draft afterwards.');">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-rocket-takeoff"></i> Publish Assignment</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 mb-4 bg-light">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3"><i class="bi bi-gear-wide-connected me-2"></i>Parameters</h6>
+                <div class="small mb-2 text-muted">Total Questions: <strong class="text-dark">{{ questions|length }}</strong></div>
+                <div class="small mb-2 text-muted">Targeted Mode: <strong class="text-dark">{{ assignment.target_type|capitalize }}</strong></div>
+                <div class="small mb-4 text-muted">Due Date: <strong class="text-dark">{{ assignment.due_date.strftime('%Y-%m-%d %H:%M') if assignment.due_date else 'None' }}</strong></div>
+                
+                <h6 class="fw-bold mb-2">Instructions Sent:</h6>
+                <div class="small text-muted p-2 bg-white border rounded" style="min-height: 50px;">
+                    {{ assignment.instructions or 'Default system parameters.' }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Generated Questions</h5>
+            <button class="btn btn-sm btn-outline-primary" id="toggleAnswersBtn">Show Answers</button>
+        </div>
+        {% for q in questions %}
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <span class="fw-bold">Question {{ loop.index }}</span>
+                <div>
+                    <span class="badge bg-info text-dark me-1">{{ q.bloom_level|capitalize }}</span>
+                    <span class="badge {{ 'bg-success' if q.difficulty == 'easy' else 'bg-warning text-dark' if q.difficulty == 'medium' else 'bg-danger' }}">
+                        {{ q.difficulty|capitalize }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="fs-6 mb-4">{{ q.question_text }}</p>
+                
+                <div class="ps-3 border-start border-3 border-primary">
+                    {% if q.question_type == 'NAT' %}
+                        <div class="form-control bg-light border-0 mb-2">
+                            <strong>Answer:</strong> <span class="text-success nat-answer d-none">{{ q.correct_answer }}</span>
+                        </div>
+                    {% else %}
+                        {% set options = q.get_options() %}
+                        {% set correct_keys = q.correct_answer.split(',') if q.question_type == 'MSQ' else [q.correct_answer] %}
+                        
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            {% for key, val in options.items() %}
+                            <div class="p-2 border rounded bg-light border-light answer-option" data-is-correct="{{ 'true' if key in correct_keys else 'false' }}">
+                                <strong>{{ key }}:</strong> {{ val }}
+                                <i class="bi bi-check-circle-fill float-end pt-1 d-none correct-icon"></i>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            No questions were generated. You might want to try regenerating.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById('toggleAnswersBtn');
+    if (toggleBtn) {
+        let answersShown = false;
+        toggleBtn.addEventListener('click', function() {
+            answersShown = !answersShown;
+            toggleBtn.textContent = answersShown ? 'Hide Answers' : 'Show Answers';
+            
+            document.querySelectorAll('.answer-option').forEach(el => {
+                if (el.getAttribute('data-is-correct') === 'true') {
+                    if (answersShown) {
+                        el.classList.remove('bg-light', 'border-light');
+                        el.classList.add('bg-success', 'text-white', 'border-success');
+                        const icon = el.querySelector('.correct-icon');
+                        if (icon) icon.classList.remove('d-none');
+                    } else {
+                        el.classList.add('bg-light', 'border-light');
+                        el.classList.remove('bg-success', 'text-white', 'border-success');
+                        const icon = el.querySelector('.correct-icon');
+                        if (icon) icon.classList.add('d-none');
+                    }
+                }
+            });
+            
+            document.querySelectorAll('.nat-answer').forEach(el => {
+                if (answersShown) {
+                    el.classList.remove('d-none');
+                } else {
+                    el.classList.add('d-none');
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h2 class="h3"><i class="bi bi-person-workspace text-primary me-2"></i>My Classrooms</h2>
+    <p class="text-secondary">Join classrooms created by your instructors to instantly receive auto-assigned quizzes.</p>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="classroomTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-medium" id="joined-tab" data-bs-toggle="tab" data-bs-target="#joined" type="button" role="tab">
+            Joined Classrooms <span class="badge bg-primary rounded-pill ms-1">{{ joined_classrooms|length }}</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-medium" id="available-tab" data-bs-toggle="tab" data-bs-target="#available" type="button" role="tab">
+            Available to Join
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="classroomTabsContent">
+    <!-- Joined Tab -->
+    <div class="tab-pane fade show active" id="joined" role="tabpanel">
+        <div class="row g-4">
+            {% for room in joined_classrooms %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0 border-top border-primary border-4">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold mb-2">{{ room.name }}</h5>
+                        <p class="card-text text-muted small mb-3" style="min-height: 40px;">
+                            {{ room.description or 'No additional description provided.' }}
+                        </p>
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-person-circle text-secondary me-2"></i>
+                            <span class="small fw-medium">Instructor: {{ room.admin.username }}</span>
+                        </div>
+
+                        <!-- Classroom Assignments -->
+                        <div class="mt-3 pt-2 border-top">
+                            <h6 class="fw-bold small mb-2 text-primary"><i class="bi bi-card-checklist me-1"></i>Class Assignments</h6>
+                            <div class="list-group list-group-flush">
+                                {% for assign in class_assignments if assign.target_class_id == room.id %}
+                                <div class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center bg-transparent border-0 border-bottom border-light">
+                                    <div>
+                                        <div class="fw-medium text-dark small">{{ assign.title or assign.quiz.resource.title }}</div>
+                                        {% if assign.due_date %}
+                                        <div class="text-danger" style="font-size: 0.7rem;"><i class="bi bi-calendar-event me-1"></i>Due: {{ assign.due_date.strftime('%b %d') }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <form action="{{ url_for('quiz.start') }}" method="post" class="d-inline">
+                                        <input type="hidden" name="resource_id" value="{{ assign.quiz.resource_id }}">
+                                        <input type="hidden" name="retry_quiz_id" value="{{ assign.quiz.id }}">
+                                        <button type="submit" class="btn btn-primary btn-xs py-1 px-2" style="font-size: 0.7rem;">
+                                            Start
+                                        </button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <div class="text-muted small py-1"><i class="bi bi-info-circle me-1"></i>No assignments yet.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-0 pt-0 pb-3">
+                        <form action="{{ url_for('user.leave_classroom', class_id=room.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to leave {{ room.name }}? You will stop receiving its assignments.');">
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100">
+                                <i class="bi bi-box-arrow-right me-1"></i> Leave Classroom
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="text-center p-5 bg-light rounded bg-opacity-50">
+                    <i class="bi bi-mortarboard text-secondary opacity-50 display-4 mb-3 d-block"></i>
+                    <h5 class="text-secondary fw-normal">You aren't in any classrooms yet.</h5>
+                    <p class="text-muted small">Switch to the "Available to Join" tab to find your instructor's class.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Available Tab -->
+    <div class="tab-pane fade" id="available" role="tabpanel">
+        <div class="row g-4">
+            {% for room in available_classrooms %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0 bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold mb-2">{{ room.name }}</h5>
+                        <p class="card-text text-muted small mb-3" style="min-height: 40px;">
+                            {{ room.description or 'No additional description provided.' }}
+                        </p>
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-person-circle text-secondary me-2"></i>
+                            <span class="small fw-medium">Instructor: {{ room.admin.username }}</span>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light border-0 pt-0 pb-3">
+                        <form action="{{ url_for('user.join_classroom', class_id=room.id) }}" method="POST">
+                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                <i class="bi bi-plus-circle me-1"></i> Join Classroom
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="text-center p-5">
+                    <i class="bi bi-check-circle text-success opacity-50 display-4 mb-3 d-block"></i>
+                    <h5 class="text-secondary fw-normal">No more classes available.</h5>
+                    <p class="text-muted small">You have joined all available classrooms or none exist yet.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

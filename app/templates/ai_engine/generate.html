@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-1">Generate Quiz</h4>
+                <p class="text-secondary small mb-0">Create custom quizzes using AI.</p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <form action="{{ url_for('ai_engine.process') }}" method="post" id="generateForm">
+                    <!-- Resource Selection -->
+                    <div class="mb-4">
+                        <label for="resource_id" class="form-label fw-bold">1. Select Resource</label>
+                        <select class="form-select" id="resource_id" name="resource_id" required>
+                            <option value="" selected disabled>Choose a resource...</option>
+                            {% for resource in resources %}
+                            <option value="{{ resource.id }}">{{ resource.title }} ({{
+                                resource.resource_type|replace('_', ' ')|title }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Topic & Mode -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="topic_mode" class="form-label fw-bold">2. Generation Mode</label>
+                            <select class="form-select bg-light" id="topic_mode" name="topic_mode">
+                                <option value="full">Full Resource Exam</option>
+                                <option value="topic">Specific Topic</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Topic</label>
+                            
+                            <!-- Checkbox Container for Specific Topic mode -->
+                            <div id="topic_list_container" class="border rounded p-2 bg-white d-none overflow-auto" style="height: 120px;">
+                                <!-- Checkboxes injected here -->
+                            </div>
+                            
+                            <!-- Default representation -->
+                            <div id="no_topics_msg" class="form-control bg-light text-secondary">
+                                All Topics (Full Exam)
+                            </div>
+                            
+                            <!-- Checkbox actions -->
+                            <div class="d-flex justify-content-between mt-1 pt-1">
+                                <small id="topic_help" class="text-secondary d-none" style="font-size: 0.8rem;">
+                                    Select specific subtopics below.
+                                </small>
+                                <button type="button" id="select_all_topics" class="btn btn-link btn-sm p-0 text-decoration-none d-none">
+                                    Select All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold mb-3">3. Configuration</label>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="num_questions" class="form-label small text-secondary">No. of
+                                    Questions</label>
+                                <input type="number" class="form-control" id="num_questions" name="num_questions"
+                                    value="5" min="1" max="50">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="difficulty" class="form-label small text-secondary">Difficulty</label>
+                                <select class="form-select" id="difficulty" name="difficulty">
+                                    <option value="easy">Easy</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="hard">Hard</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="bloom_level" class="form-label small text-secondary">Bloom Level</label>
+                                <select class="form-select" id="bloom_level" name="bloom_level">
+                                    <option value="remember">Remember</option>
+                                    <option value="understand" selected>Understand</option>
+                                    <option value="apply">Apply</option>
+                                    <option value="analyze">Analyze</option>
+                                    <option value="evaluate">Evaluate</option>
+                                    <option value="create">Create</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Question Type -->
+                    <div class="mb-4">
+                        <label for="question_type" class="form-label fw-bold">4. Question Type</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="question_type" id="mcq" value="MCQ" checked>
+                            <label class="btn btn-outline-primary" for="mcq">MCQ</label>
+
+                            <input type="radio" class="btn-check" name="question_type" id="msq" value="MSQ">
+                            <label class="btn btn-outline-primary" for="msq">MSQ</label>
+
+                            <input type="radio" class="btn-check" name="question_type" id="nat" value="NAT">
+                            <label class="btn btn-outline-primary" for="nat">Numerical</label>
+                        </div>
+                    </div>
+
+                    {% if current_user.is_admin() %}
+                    <!-- Admin Customization -->
+                    <div class="mb-4 border-top pt-4">
+                        <label class="form-label fw-bold mb-3 text-primary"><i class="bi bi-gear-fill me-2"></i>5. Teacher Customization</label>
+                        
+                        <div class="mb-3">
+                            <label for="teacher_note" class="form-label small text-secondary">Teacher's Note (Special Constraint for AI)</label>
+                            <textarea class="form-control" id="teacher_note" name="teacher_note" rows="3" 
+                                placeholder="e.g. 'Focus more on Chapter 3 formulas' or 'Make the tone professional.'"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="passing_score" class="form-label small text-secondary">Passing Score (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="passing_score" name="passing_score" value="50" min="0" max="100">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-grid mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-stars me-2"></i> Generate Questions
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const resourceSelect = document.getElementById('resource_id');
+        const topicModeSelect = document.getElementById('topic_mode');
+        const topicHelp = document.getElementById('topic_help');
+        const topicListContainer = document.getElementById('topic_list_container');
+        const noTopicsMsg = document.getElementById('no_topics_msg');
+        const selectAllBtn = document.getElementById('select_all_topics');
+
+        // Handle Resource Change
+        resourceSelect.addEventListener('change', function () {
+            const resourceId = this.value;
+            if (resourceId && topicModeSelect.value === 'topic') {
+                fetchAndPopulateTopics(resourceId);
+            }
+        });
+        
+        // Handle Generation Mode Change (Specific Topic Selection)
+        topicModeSelect.addEventListener('change', function() {
+            const mode = this.value;
+            const resourceId = resourceSelect.value;
+            
+            if (mode === 'topic') {
+                topicHelp.classList.remove('d-none');
+                
+                if (resourceId) {
+                    fetchAndPopulateTopics(resourceId);
+                } else {
+                    topicListContainer.classList.add('d-none');
+                    noTopicsMsg.classList.remove('d-none');
+                    selectAllBtn.classList.add('d-none');
+                    noTopicsMsg.textContent = "Please select a resource first";
+                }
+            } else {
+                topicHelp.classList.add('d-none');
+                topicListContainer.classList.add('d-none');
+                noTopicsMsg.classList.remove('d-none');
+                selectAllBtn.classList.add('d-none');
+                noTopicsMsg.textContent = "All Topics (Full Exam)";
+            }
+        });
+
+        // Helper to fetch and populate specific topic checkboxes
+        function fetchAndPopulateTopics(resourceId) {
+            topicListContainer.classList.add('d-none');
+            noTopicsMsg.classList.remove('d-none');
+            selectAllBtn.classList.add('d-none');
+            noTopicsMsg.textContent = "Loading topics...";
+            
+            fetch(`/ai/api/topics/${resourceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    topicListContainer.innerHTML = ''; // clear loading state
+                    const topics = data.topics || [];
+                    
+                    if (topics && topics.length > 0) {
+                        topicListContainer.classList.remove('d-none');
+                        noTopicsMsg.classList.add('d-none');
+                        selectAllBtn.classList.remove('d-none');
+                        
+                        topics.forEach(topic => {
+                            const div = document.createElement('div');
+                            div.className = 'form-check bg-white px-3 py-2 border rounded shadow-sm mb-1';
+                            div.innerHTML = `
+                                <input class="form-check-input topic-checkbox" type="checkbox" name="topics" value="${topic.id}" id="topic${topic.id}">
+                                <label class="form-check-label small fw-medium" for="topic${topic.id}">${topic.name}</label>
+                            `;
+                            topicListContainer.appendChild(div);
+                        });
+                    } else {
+                        topicListContainer.classList.add('d-none');
+                        noTopicsMsg.classList.remove('d-none');
+                        selectAllBtn.classList.add('d-none');
+                        noTopicsMsg.textContent = "No topics found for this resource";
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching topics:", error);
+                    topicListContainer.classList.add('d-none');
+                    noTopicsMsg.classList.remove('d-none');
+                    selectAllBtn.classList.add('d-none');
+                    noTopicsMsg.textContent = "Error loading topics";
+                });
+        }
+
+        // Select All Toggle
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                const checkboxes = document.querySelectorAll('.topic-checkbox');
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                checkboxes.forEach(cb => cb.checked = !allChecked);
+                this.textContent = allChecked ? 'Select All' : 'Deselect All';
+            });
+        }
+    });
+</script>
+{% endblock %}

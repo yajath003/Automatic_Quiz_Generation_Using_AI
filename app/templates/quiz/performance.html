@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Performance Analytics</h2>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-center bg-light border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total Quizzes</h5>
+                    <p class="display-4 fw-bold text-primary">{{ total_quizzes }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-center bg-light border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Average Score</h5>
+                    <p class="display-4 fw-bold text-success">{{ "%.1f"|format(avg_score) }}%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="mb-0">Recent Attempts</h5>
+        </div>
+        <div class="card-body">
+            {% if attempts %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Resource</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attempt in attempts %}
+                        <tr>
+                            <td>{{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') if attempt.completed_at else 'In
+                                Progress' }}</td>
+                            <td>{{ attempt.quiz.resource.title }}</td>
+                            <td>
+                                {% if attempt.assignment_id %}
+                                    {% if assignments.get(attempt.assignment_id) and assignments[attempt.assignment_id].results_released %}
+                                        {{ "%.1f"|format(attempt.total_score) }}%
+                                    {% else %}
+                                        <span class="text-muted small"><i class="bi bi-lock me-1"></i>Pending</span>
+                                    {% endif %}
+                                {% else %}
+                                    {{ "%.1f"|format(attempt.total_score) if attempt.total_score is not none else 'N/A' }}%
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attempt.completed_at %}
+                                <span class="badge bg-success">Completed</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">In Progress</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if attempt.assignment_id and assignments.get(attempt.assignment_id) and not assignments[attempt.assignment_id].results_released %}
+                                <button class="btn btn-sm btn-outline-secondary" disabled title="Not released">View</button>
+                                {% else %}
+                                <a href="{{ url_for('quiz.result', attempt_id=attempt.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-center text-muted">No quizzes taken yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

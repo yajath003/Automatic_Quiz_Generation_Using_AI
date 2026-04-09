@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mb-4">
+    <h4 class="fw-bold mb-1">Create New Assignment</h4>
+    <p class="text-secondary small mb-0">Configure quiz parameters and target students.</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <form action="{{ url_for('admin.create_assignment_post') }}" method="POST">
+                    <!-- Assignment Details -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-primary mb-3">1. Assignment Details</h6>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Assignment Title</label>
+                            <input type="text" name="title" class="form-control"
+                                placeholder="e.g., Midterm Logic Gates Quiz" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Teacher Notes / Instructions for AI</label>
+                            <textarea name="instructions" class="form-control" rows="3"
+                                placeholder="e.g., Focus specifically on NAND and NOR gates..."></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-medium">Due Date (Optional)</label>
+                                <input type="datetime-local" name="due_date" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-medium">Resource</label>
+                                <select name="resource_id" id="resource_select" class="form-select" required>
+                                    <option value="">Select a resource...</option>
+                                    {% for r in resources %}
+                                    <option value="{{ r.id }}">{{ r.title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3 d-none" id="topic_selector_container">
+                            <label class="form-label fw-medium">Select Topics (Optional)</label>
+                            <div id="topicsContainer" class="border rounded p-3 bg-white"
+                                style="max-height: 200px; overflow-y: auto;">
+                                <div class="form-check mb-1">
+                                    <input type="checkbox" class="form-check-input" id="selectAllTopics" checked>
+                                    <label class="form-check-label fw-bold" for="selectAllTopics">All Topics</label>
+                                </div>
+                                <hr class="my-2">
+                                <div id="topicsList" class="d-flex flex-column gap-2">
+                                    <!-- Dynamic Checkboxes -->
+                                </div>
+                            </div>
+                            <small class="text-muted mt-1 d-block">Check specific topics or leave 'All Topics'
+                                checked.</small>
+                            <!-- Hidden Input for JSON Submit -->
+                            <input type="hidden" name="selected_topics" id="selectedTopicsInput">
+                        </div>
+                    </div>
+
+                    <!-- Quiz Configuration -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-primary mb-3">2. Quiz Configuration</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-medium">Number of Questions</label>
+                                <input type="number" name="num_questions" class="form-control" value="5" min="1"
+                                    max="20" required>
+                            </div>
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label fw-medium">Question Types</label>
+                                <div class="d-flex gap-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="q_types" value="MCQ"
+                                            id="type_mcq" checked>
+                                        <label class="form-check-label" for="type_mcq">MCQ</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="q_types" value="MSQ"
+                                            id="type_msq">
+                                        <label class="form-check-label" for="type_msq">MSQ</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="q_types" value="NAT"
+                                            id="type_nat">
+                                        <label class="form-check-label" for="type_nat">NAT</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label fw-medium d-block">Difficulty Distribution</label>
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-success text-white">Easy</span>
+                                            <input type="number" name="easy_count" class="form-control" value="2"
+                                                min="0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-warning text-dark">Medium</span>
+                                            <input type="number" name="medium_count" class="form-control" value="2"
+                                                min="0">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="input-group input-group-sm">
+                                            <span class="input-group-text bg-danger text-white">Hard</span>
+                                            <input type="number" name="hard_count" class="form-control" value="1"
+                                                min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-muted mt-1 d-block">Total must match "Number of Questions".</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Users -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-primary mb-3">3. Target Users</h6>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input tgt-radio" type="radio" name="target_mode" value="all"
+                                id="target_all" checked>
+                            <label class="form-check-label" for="target_all">Assign to all users</label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input tgt-radio" type="radio" name="target_mode" value="class"
+                                id="target_class">
+                            <label class="form-check-label" for="target_class">Assign to a Classroom</label>
+                        </div>
+                        <div id="class_selection" class="ps-4 mb-3 d-none">
+                            <select name="target_class_id" class="form-select">
+                                <option value="">Select Classroom...</option>
+                                {% for c in classrooms %}
+                                <option value="{{ c.id }}">{{ c.name }} ({{ c.members|length }} members)</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input tgt-radio" type="radio" name="target_mode" value="selected"
+                                id="target_selected">
+                            <label class="form-check-label" for="target_selected">Assign to selected users</label>
+                        </div>
+                        <div id="user_selection" class="ps-4 d-none">
+                            <label class="form-label small fw-bold text-secondary">Available Users</label>
+                            <div class="border rounded p-3 bg-light" style="max-height: 250px; overflow-y: auto;">
+                                {% for u in users %}
+                                <div class="form-check py-1">
+                                    <input class="form-check-input user-checkbox" type="checkbox" name="selected_users"
+                                        value="{{ u.id }}" id="user{{ u.id }}">
+                                    <label class="form-check-label small" for="user{{ u.id }}">
+                                        <strong>{{ u.username }}</strong> <span class="text-muted">({{ u.email
+                                            }})</span>
+                                    </label>
+                                </div>
+                                {% else %}
+                                <p class="text-center text-muted small py-2">No students found.</p>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted d-block mt-2">Select one or more students for this
+                                assignment.</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 justify-content-end mt-4">
+                        <a href="{{ url_for('admin.list_assignments') }}" class="btn btn-light">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">Generate & Assign</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const resourceSelect = document.getElementById('resource_select');
+    if (resourceSelect) {
+        resourceSelect.addEventListener('change', function () {
+            const resourceId = this.value;
+            const topicContainer = document.getElementById('topic_selector_container');
+            const topicsList = document.getElementById('topicsList');
+            const selectAllTopics = document.getElementById('selectAllTopics');
+
+            if (resourceId && topicContainer && topicsList) {
+                topicContainer.classList.remove('d-none');
+                topicsList.innerHTML = '<div class="text-muted small">Loading topics...</div>';
+
+                // Re-check "All Topics" on resource change
+                if (selectAllTopics) selectAllTopics.checked = true;
+
+                fetch(`/ai/api/topics/${resourceId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        topicsList.innerHTML = '';
+                        const topics = data.topics || [];
+                        if (topics.length > 0) {
+                            topics.forEach((topic, index) => {
+                                const div = document.createElement('div');
+                                div.className = 'form-check';
+                                div.innerHTML = `
+                                <input type="checkbox" class="form-check-input topic-checkbox" value="${topic.id}" id="topic_${topic.id}" disabled>
+                                <label class="form-check-label small" for="topic_${topic.id}">${topic.name}</label>
+                            `;
+                                topicsList.appendChild(div);
+                            });
+                            setupSelectAllLogic();
+                        } else {
+                            topicsList.innerHTML = '<div class="text-muted small">No subtopics found. "All Topics" will be used.</div>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error fetching topics:", error);
+                        topicsList.innerHTML = '<div class="text-danger small">Error loading topics. fallback used.</div>';
+                    });
+            } else if (topicContainer) {
+                topicContainer.classList.add('d-none');
+            }
+        });
+
+        function setupSelectAllLogic() {
+            const selectAll = document.getElementById('selectAllTopics');
+            const checkboxes = document.querySelectorAll('.topic-checkbox');
+
+            if (selectAll && checkboxes.length > 0) {
+                // Master toggle removes child checks AND disables them so they can't be checked
+                selectAll.addEventListener('change', function () {
+                    const isChecked = this.checked;
+                    checkboxes.forEach(cb => {
+                        cb.disabled = isChecked;
+                        if (isChecked) {
+                            cb.checked = false;
+                        }
+                    });
+                });
+
+                // If ANY checkbox is clicked, uncheck "All Topics"
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', function () {
+                        if (this.checked) {
+                            selectAll.checked = false;
+                            checkboxes.forEach(c => c.disabled = false);
+                        } else {
+                            const anyChecked = Array.from(checkboxes).some(c => c.checked);
+                            if (!anyChecked) {
+                                selectAll.checked = true;
+                                checkboxes.forEach(c => c.disabled = true);
+                            }
+                        }
+                    });
+                });
+            }
+        }
+    }
+
+    // Form Submission interceptor - collections selections bounds
+    const form = document.querySelector('form[action*="create_assignment_post"]');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            const selectedTopicsInput = document.getElementById('selectedTopicsInput');
+            const selectAll = document.getElementById('selectAllTopics');
+            let selectedTopics = [];
+
+            if (selectAll && !selectAll.checked) {
+                const checkboxes = document.querySelectorAll('.topic-checkbox:checked');
+                checkboxes.forEach(cb => {
+                    selectedTopics.push(cb.value);
+                });
+            }
+
+            if (selectedTopicsInput) {
+                selectedTopicsInput.value = JSON.stringify(selectedTopics);
+            }
+        });
+    }
+
+    document.querySelectorAll('.tgt-radio').forEach(radio => {
+        radio.addEventListener('change', function () {
+            const userSelection = document.getElementById('user_selection');
+            const classSelection = document.getElementById('class_selection');
+
+            if (this.value === 'selected') {
+                userSelection.classList.remove('d-none');
+                classSelection.classList.add('d-none');
+            } else if (this.value === 'class') {
+                userSelection.classList.add('d-none');
+                classSelection.classList.remove('d-none');
+            } else {
+                userSelection.classList.add('d-none');
+                classSelection.classList.add('d-none');
+            }
+        });
+    });
+</script>
+{% endblock %}

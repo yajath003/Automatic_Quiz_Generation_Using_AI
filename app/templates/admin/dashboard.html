@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Admin Dashboard</h4>
+        <p class="text-secondary small mb-0">Overview of system performance and user activity</p>
+    </div>
+    <div class="d-flex gap-2">
+        <form action="{{ url_for('admin.export_report') }}" method="GET">
+            <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download me-1"></i> Export
+                Report</button>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon primary">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Total Users</h6>
+                    <h3>{{ total_users }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon success">
+                    <i class="bi bi-journal-check"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Quizzes Generated</h6>
+                    <h3>{{ quizzes_generated }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon warning">
+                    <i class="bi bi-hdd-stack"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>Resources</h6>
+                    <h3>{{ resources_count }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body stats-card">
+                <div class="stats-icon danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div class="stats-info">
+                    <h6>System Alerts</h6>
+                    <h3>{{ system_alerts }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Recent User Activity</span>
+        <button class="btn btn-link btn-sm text-decoration-none p-0">View All</button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">User</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <!-- <th class="text-end pe-4">Manage</th> -->
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activities %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                                    style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    {{ activity.user.username[0].upper() if activity.user else '?' }}
+                                </div>
+                                <div>
+                                    <div class="fw-medium">{{ activity.user.username if activity.user else 'Unknown' }}
+                                    </div>
+                                    <div class="small text-secondary">{{ activity.user.email if activity.user else
+                                        'no-email' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ activity.action }}</td>
+                        <td>
+                            <span
+                                class="badge bg-{{ 'success' if activity.status == 'Completed' else 'primary' if activity.status == 'Uploaded' else 'info' }} bg-opacity-10 text-{{ 'success' if activity.status == 'Completed' else 'primary' if activity.status == 'Uploaded' else 'info' }} px-2 py-1 rounded-pill">
+                                {{ activity.status }}
+                            </span>
+                        </td>
+                        <td class="text-secondary">{{ activity.date.strftime('%b %d, %Y') if activity.date else 'N/A' }}
+                        </td>
+                        <!-- <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-light text-secondary"><i
+                                    class="bi bi-three-dots-vertical"></i></button>
+                        </td> -->
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-secondary">No recent activity.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

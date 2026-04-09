@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-journal-check"></i> Managed Class Assignments</h2>
+        <a href="{{ url_for('ai_engine.process') }}" class="btn btn-primary">+ Create New Assignment</a>
+    </div>
+
+    <!-- Phase 3: Knowledge Gap Insight Template (Simplified for demo) -->
+    <!-- In a real implementation, this would be computed per assignment. -->
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <div class="fs-3 me-3"><i class="bi bi-lightbulb-fill text-warning"></i></div>
+            <div>
+                <strong class="text-dark">Teacher Insight:</strong> 
+                Most students (70%) failed the <strong>Hard</strong> questions in recent assignments. 
+                You may want to review advanced concepts from the resource materials in class.
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Quiz Title</th>
+                            <th>Resource</th>
+                            <th>Submissions</th>
+                            <th>Avg. Score</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assignment in assignments %}
+                        <tr>
+                            <td><strong>{{ assignment.title }}</strong></td>
+                            <td>{{ assignment.resource_name }}</td>
+                            <td>
+                                <span class="badge bg-info text-dark">
+                                    {{ assignment.completion_count }} Students
+                                </span>
+                            </td>
+                            <td>{{ assignment.average_score }}%</td>
+                            <td>
+                                {% if assignment.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Closed</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('admin_assignments.export_report', assign_id=assignment.id) }}" 
+                                   class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+                                </a>
+                                {% if assignment.status == 'active' %}
+                                <form action="{{ url_for('admin_assignments.close_assignment', assign_id=assignment.id) }}" method="post" class="d-inline ms-1">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Close this assignment?')">Close</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-secondary">
+                                <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
+                                No assignments managed yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
