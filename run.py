@@ -1,5 +1,6 @@
 from app import create_app, db
 from app.models import User
+import os
 
 app = create_app()
 
@@ -8,5 +9,5 @@ def make_shell_context():
     return {'db': db, 'User': User}
 
 if __name__ == "__main__":
+    print("Starting Flask app...")
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
-
