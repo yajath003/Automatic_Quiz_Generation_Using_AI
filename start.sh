@@ -7,6 +7,6 @@ export MALLOC_ARENA_MAX=2
 echo "Starting Celery Worker (Memory Optimized)..."
 celery -A celery_worker.celery worker --beat --pool=solo --loglevel=warning &
 
-# Start the Flask web app with 1 worker and preloaded memory
+# Start the Flask web app bound to Render's required PORT
 echo "Starting Gunicorn server (Memory Optimized)..."
-gunicorn run:app --workers 1 --threads 4 --preload
+gunicorn run:app --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --preload
