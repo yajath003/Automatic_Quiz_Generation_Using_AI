@@ -20,13 +20,22 @@ from sentence_transformers import SentenceTransformer, util
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Lazy load model to save memory/speed if not always needed, or load once globally
-# We'll load it once globally for the worker to reuse
-try:
-    similarity_model = SentenceTransformer('all-MiniLM-L6-v2')
-except Exception as e:
-    logger.error(f"Failed to load sentence-transformers model: {e}")
-    similarity_model = None
+# Lazy load model ONLY when requested to save strict 512MB RAM constraints
+_similarity_model = None
+_similarity_model_failed = False
+
+def get_similarity_model():
+    global _similarity_model, _similarity_model_failed
+    if _similarity_model is None and not _similarity_model_failed:
+        try:
+            logger.info("Initializing SentenceTransformer lazy load (Only loads inside worker process)...")
+            _similarity_model = SentenceTransformer('all-MiniLM-L6-v2')
+        except Exception as e:
+            logger.error(f"Failed to load sentence-transformers model: {e}")
+            _similarity_model_failed = True
+            _similarity_model = None
+    return _similarity_model
+
 logger = logging.getLogger(__name__)
 
 
@@ -404,9 +413,9 @@ class QuizService:
                             is_valid = False
                             
                 # 3. Semantic Duplicate Check
-                if is_valid and similarity_model and existing_embeddings is not None and len(existing_texts) > 0:
+                if is_valid and get_similarity_model() is not None and existing_embeddings is not None and len(existing_texts) > 0:
                     try:
-                        new_emb = similarity_model.encode(q_text, convert_to_tensor=True)
+                        new_emb = get_similarity_model().encode(q_text, convert_to_tensor=True)
                         cosine_scores = util.cos_sim(new_emb, existing_embeddings)[0]
                         max_score_idx = cosine_scores.argmax().item()
                         max_score = cosine_scores[max_score_idx].item()
@@ -613,8 +622,8 @@ class QuizService:
         existing_texts = [q.question_text for q in existing_questions if q.question_text]
         existing_embeddings = None
         
-        if similarity_model and existing_texts:
-            existing_embeddings = similarity_model.encode(existing_texts, convert_to_tensor=True)
+        if get_similarity_model() is not None and existing_texts:
+            existing_embeddings = get_similarity_model().encode(existing_texts, convert_to_tensor=True)
 
         generated_questions = []
 
